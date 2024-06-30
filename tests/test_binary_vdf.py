@@ -166,6 +166,12 @@ class BinaryVDF(unittest.TestCase):
             vdf.binary_load(buf, raise_on_remaining=True)
         self.assertEqual(buf.read(), b'aaaa')
 
+    def test_key_table(self):
+        test = b'\x01\x00\x00\x00\x00value\x00\x01\x02\x00\x00\x00value3\x00\x08'
+        key_table = ['key', 'key2', 'key3', 'key4']
+
+        self.assertEqual({'key': 'value', 'key3': 'value3'}, vdf.binary_loads(test, key_table=key_table))
+
     def test_vbkv_loads_empty(self):
         with self.assertRaises(ValueError):
             vdf.vbkv_loads(b'')

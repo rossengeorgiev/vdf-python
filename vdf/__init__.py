@@ -295,7 +295,7 @@ BIN_END         = b'\x08'
 BIN_INT64       = b'\x0A'
 BIN_END_ALT     = b'\x0B'
 
-def binary_loads(b, mapper=dict, merge_duplicate_keys=True, alt_format=False, raise_on_remaining=True):
+def binary_loads(b, mapper=dict, merge_duplicate_keys=True, alt_format=False, key_table=None, raise_on_remaining=True):
     """
     Deserialize ``b`` (``bytes`` containing a VDF in "binary form")
     to a Python object.
@@ -307,13 +307,18 @@ def binary_loads(b, mapper=dict, merge_duplicate_keys=True, alt_format=False, ra
     ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
     same key into one instead of overwriting. You can se this to ``False`` if you are
     using ``VDFDict`` and need to preserve the duplicates.
+
+    ``key_table`` will be used to translate keys in binary VDF objects
+    which do not encode strings directly but instead store them in an out-of-band
+    table. Newer `appinfo.vdf` format stores this table the end of the file,
+    and it is needed to deserialize the binary VDF objects in that file.
     """
     if not isinstance(b, bytes):
         raise TypeError("Expected s to be bytes, got %s" % type(b))
 
-    return binary_load(BytesIO(b), mapper, merge_duplicate_keys, alt_format, raise_on_remaining)
+    return binary_load(BytesIO(b), mapper, merge_duplicate_keys, alt_format, key_table, raise_on_remaining)
 
-def binary_load(fp, mapper=dict, merge_duplicate_keys=True, alt_format=False, raise_on_remaining=False):
+def binary_load(fp, mapper=dict, merge_duplicate_keys=True, alt_format=False, key_table=None, raise_on_remaining=False):
     """
     Deserialize ``fp`` (a ``.read()``-supporting file-like object containing
     binary VDF) to a Python object.
@@ -325,6 +330,11 @@ def binary_load(fp, mapper=dict, merge_duplicate_keys=True, alt_format=False, ra
     ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
     same key into one instead of overwriting. You can se this to ``False`` if you are
     using ``VDFDict`` and need to preserve the duplicates.
+
+    ``key_table`` will be used to translate keys in binary VDF objects
+    which do not encode strings directly but instead store them in an out-of-band
+    table. Newer `appinfo.vdf` format stores this table the end of the file,
+    and it is needed to deserialize the binary VDF objects in that file.
     """
     if not hasattr(fp, 'read') or not hasattr(fp, 'tell') or not hasattr(fp, 'seek'):
         raise TypeError("Expected fp to be a file-like object with tell()/seek() and read() returning bytes")
@@ -382,7 +392,15 @@ def binary_load(fp, mapper=dict, merge_duplicate_keys=True, alt_format=False, ra
                 continue
             break
 
-        key = read_string(fp)
+        if key_table:
+            # If 'key_table' was provided, each key is an int32 value that
+            # needs to be mapped to an actual field name using a key table.
+            # Newer appinfo.vdf (V29+) stores this table at the end of the file.
+            index = int32.unpack(fp.read(int32.size))[0]
+
+            key = key_table[index]
+        else:
+            key = read_string(fp)
 
         if t == BIN_NONE:
             if merge_duplicate_keys and key in stack[-1]:
