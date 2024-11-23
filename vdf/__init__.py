@@ -211,7 +211,7 @@ def load(fp, **kwargs):
     return parse(fp, **kwargs)
 
 
-def dumps(obj, pretty=False, escaped=True):
+def dumps(obj, pretty=False, escaped=True, gap_size=1):
     """
     Serialize ``obj`` to a VDF formatted ``str``.
     """
@@ -221,11 +221,13 @@ def dumps(obj, pretty=False, escaped=True):
         raise TypeError("Expected pretty to be of type bool")
     if not isinstance(escaped, bool):
         raise TypeError("Expected escaped to be of type bool")
+    if gap_size < 1:
+        raise TypeError("Expected gap_size to be 1 or more")
 
-    return ''.join(_dump_gen(obj, pretty, escaped))
+    return ''.join(_dump_gen(obj, pretty, escaped, gap_size))
 
 
-def dump(obj, fp, pretty=False, escaped=True):
+def dump(obj, fp, pretty=False, escaped=True, gap_size=1):
     """
     Serialize ``obj`` as a VDF formatted stream to ``fp`` (a
     ``.write()``-supporting file-like object).
@@ -238,14 +240,17 @@ def dump(obj, fp, pretty=False, escaped=True):
         raise TypeError("Expected pretty to be of type bool")
     if not isinstance(escaped, bool):
         raise TypeError("Expected escaped to be of type bool")
+    if gap_size < 1:
+        raise TypeError("Expected gap_size to be 1 or more")
 
-    for chunk in _dump_gen(obj, pretty, escaped):
+    for chunk in _dump_gen(obj, pretty, escaped, gap_size):
         fp.write(chunk)
 
 
-def _dump_gen(data, pretty=False, escaped=True, level=0):
+def _dump_gen(data, pretty=False, escaped=True, gap_size=1, level=0):
     indent = "\t"
     line_indent = ""
+    gap = " " * gap_size
 
     if pretty:
         line_indent = indent * level
@@ -256,14 +261,14 @@ def _dump_gen(data, pretty=False, escaped=True, level=0):
 
         if isinstance(value, Mapping):
             yield '%s"%s"\n%s{\n' % (line_indent, key, line_indent)
-            for chunk in _dump_gen(value, pretty, escaped, level+1):
+            for chunk in _dump_gen(value, pretty, escaped, gap_size, level+1):
                 yield chunk
             yield "%s}\n" % line_indent
         else:
             if escaped and isinstance(value, string_type):
                 value = _escape(value)
 
-            yield '%s"%s" "%s"\n' % (line_indent, key, value)
+            yield '%s"%s"%s"%s"\n' % (line_indent, key, gap, value)
 
 
 # binary VDF

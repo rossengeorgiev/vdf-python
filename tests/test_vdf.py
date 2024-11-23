@@ -98,6 +98,8 @@ class testcase_helpers_dump(unittest.TestCase):
             vdf.dump({'a': 1}, StringIO(), escaped=1)
         with self.assertRaises(TypeError):
             vdf.dumps({'a': 1}, escaped=1)
+        with self.assertRaises(TypeError):
+            vdf.dumps({'a': 1}, gap_size=0)
 
     def test_routine_dumps_asserts(self):
         for x in [5, 5.5, 1.0j, True, None, (), {}, lambda: 0, sys.stdin, self.f]:
@@ -522,6 +524,16 @@ class testcase_VDF_other(unittest.TestCase):
         ]
         for test, expected in tests:
             self.assertEqual(vdf.dumps(test, pretty=True), expected)
+
+    def test_dumps_gap_size_output(self):
+        d = {'1': '1'}
+        tests = [
+            [ 1, '"1" "1"\n'],
+            [ 4, '"1"    "1"\n'],
+            [ 8, '"1"        "1"\n'],
+        ]
+        for gap_size, expected in tests:
+            self.assertEqual(vdf.dumps(d, gap_size=gap_size), expected)
 
     def test_parse_exceptions(self):
         tests = [
